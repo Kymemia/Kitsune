@@ -5,7 +5,8 @@ This is the storage model for Kitsune,
 containing every model and attribute and method
 that will be used for the site
 """
-from sqlalchemy import create_engine, Table, MetaData, Update
+from sqlalchemy import create_engine, Table, MetaData, Update, Column
+from sqlalchemy.types import Integer, String, DateTime
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine import URL
 from sqlalchemy.sql import text
@@ -380,31 +381,36 @@ class Storage:
     def create_table(self, table_name: str, columns: dict) -> dict:
         """
         This method definition allows a user to create a new table
-        with a specific name and a specific number of columns.
-        Once the table is created with a query,
-        the transaction is committed to make the creation permanent.
+        with a specific name and a specific number
+        of columns using SQLAlchemy's table definition.
 
         Args:
-        table_name => This is the name that'll be assigned
-                        to the table created.
-        columns => This will be the number of columns assigned
-                    to the table based on the user's needs.
+            table_name => This is the name that'll be assigned
+                            to the table created.
+            columns => This will be the number of columns assigne
+                        to the table based on the user's needs.
 
-        Returns created table on success.
-        Else, the transaction is rolled back to undo
-        the changes that might have caused the caught error.
+        Returns:
+            Created table on success.
+        
+        Raises:
+            SQLAlchemyError should an error occur while creating the table.
         """
-        columns_with_types = ", ".join([
-                    f"{col} {dtype}" for col, dtype in columns.items()
-                    ])
+        metadata = MetaData()
 
-        query = f"CREATE TABLE {table_name} ({columns_with_types})"
+        table = Table(
+                table_name,
+                metadata,
+                *[
+                    Column(column_name, column_type)
+                    for column_name, column_type in columns.items()
+                    ]
+                )
         try:
-            self._cursor.execute(query)
-            self._connection.commit()
-        except Error as e:
+            table.create(self._engine)
+            print(f"Table '{table_name} created successfully'")
+        except SQLAlchemyError as e:
             print(f"Error creating table: {e}")
-            self.rollback_transaction()
             raise
 
     def drop_table(self, table_name: str) -> None:
