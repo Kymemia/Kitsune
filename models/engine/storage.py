@@ -332,8 +332,16 @@ class Storage:
         of operations carried out.
         Very helpful to maintain data integrity.
             *Provides ACID benefits*
+
+        Raises:
+            SQLAlchemyError should an error arise when starting the transaction.
         """
-        self._connection.start_transaction()
+        try:
+            self._session.begin()
+            print("Transaction started")
+        except SQLAlchemyError as e:
+            print(f"Error starting transaction: {e}")
+            raise
 
     def commit_transaction(self) -> None:
         """
@@ -341,12 +349,15 @@ class Storage:
         that one is working on, thus making all changes permanent
         to the database.
 
-        Returns specific caught error in the event of an error.
+        Raises:
+            SQLAlchemyError should an error occur while committing the transaction.
         """
         try:
-            self._connection.commit()
-        except Error as e:
+            self._session.commit()
+            print("Transaction committed successfully")
+        except SQLAlchemyError as e:
             print(f"Error committing transaction: {e}")
+            self._session.rollback()
             raise
 
     def rollback_transaction(self) -> None:
