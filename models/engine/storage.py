@@ -367,11 +367,13 @@ class Storage:
         thus undoing all changes made
         during the transaction.
 
-        Returns any error/exception that might happen if unsuccessful.
+        Raises:
+            SQLAlchemy error should rollback turn out to be unsuccessful.
         """
         try:
-            self._connection.rollback()
-        except Error as e:
+            self._session.rollback()
+            print("Transaction rolled back successfully")
+        except SQLAlchemyError as e:
             print(f"Error rolling back transaction: {e}")
             raise
 
