@@ -81,6 +81,7 @@ class Storage:
             print("Success! SQLAlchemy connected.")
         except SQLAlchemyError as e:
             print(f"Error connecting to the database: {e}")
+            self._session.rollback()
             raise
 
     def disconnect(self) -> None:
@@ -242,23 +243,43 @@ class Storage:
         and custom conditions specified by the user.
 
         Args:
-        table => This is the name of the table that'll be updated.
-        data => This is a dictionary where keys == column names
+            table (str) => This is the name of the table that'll be updated.
+            data (Dict[str, any]) => This is a dictionary where keys == column names
                     and values  == new values to be set.
-        condition => This is the condition to narrow down
+            condition (str) => This is the condition to narrow down
                         which records will be updated.
 
-        Returns the number of rows affected by the update on success.
-        Else, returns caught error.
+        Returns:
+            (int): The number of rows affected by the update on success.
+        Raises:
+            SQLAlchemyError: Should an error occur while executing the query.
+
+        Example:
+            *While using a parameterized condition with a dictionary*
+            rows_updated = self.update('users', {'email': 'senor@mcmuffins.com'}, {'username': 'senor_mcmuffins'})
+
+            *While using an SQL condition*
+            rows_updated = self.update('users', {'email': 'senor@mcmuffins.com'}, 'username = :username')
         """
-        set_clause = ", ".join([f"{key} = %s" for key in data.keys()])
-        query = f"UPDATE {table} SET {set_clause} WHERE {condition}"
         try:
-            self._cursor.execute(query, list(data.values()))
-            self._connection.commit()
-            return self._cursor.rowcount
-        except Error as e:
-            print(f"Error updating: {e}")
+            metadata = MetaData(bind=self._engine)
+            target_table = Table(table, metadata, autoload_with=self._engine)
+            if isinstance(condition, str):
+                query_statement = update(target_table).values(data).where(text(condition))
+            elif isinstance(condition, dict):
+                condition_expr = [
+                        target_table.c[key] == value for key, value in condition.items()
+                        ]
+                query_statement = update(target_table).values(data).where(*condition_expr)
+            else:
+                raise ValueError("The condition must be a string or a dictionary")
+
+            result = self._session.execute(query_statement)
+            self._session.commit()
+            return result.rowcount
+        except SQLAlchemyError as e:
+            print(f"Error updating records: {e}")
+            self._session._rollback()
             raise
 
     def delete(self, table: str, condition: str) -> int:
@@ -267,22 +288,40 @@ class Storage:
         based on a user's custom condition.
 
         Args:
-            table => This is the table name
-            from which items will be deleted.
-            condition => This is the condition
-            to specify which items to delete.
+            table (str) => This is the table name
+                from which items will be deleted.
+            condition (Union[str, dict]) => This is the condition
+                to specify which items to delete.
 
-        Returns number of rows affected on success.
-        Else, returns caught error.
+        Returns:
+            int: The number of rows affected on success.
+        
+        Raise:
+            SQLAlchemyError should an error during the deletion operation.
+
+        Example:
+            rows_deleted = self.delete('users', {'username': 'senor_mcmuffins'})
         """
-        query = f"DELETE FROM {table} WHERE {condition}"
         try:
-            self._cursor.execute(query)
-            self._connection.commit()
+            metadata = MetaData(bind=self._engine)
+            target_table = Table(table, metadata, autoload_with=self._engine)
+
+            if isinstance(condition, str):
+                query_statement = delete(target_table).where(text(condition))
+            elif isinstance(condition, dict):
+                condition_expr = [
+                        target_table.c[key] == value for key, value in condition.items()
+                        ]
+                query_statement = delete(target_table).where(*condition_expr)
+            else:
+                raise ValueError("Condition must be a string or a dictionary")
+
+            result = self._session.execute(query_statement)
+            self._session.commit()
             return self._cursor.rowcount
-        except Error as e:
+        except SQLAlchemyError as e:
             print(f"Error deleting data: {e}")
-            self.rollback_transaction()
+            self._session.rollback()
             raise
 
     def begin_transaction(self) -> None:
