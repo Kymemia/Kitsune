@@ -418,22 +418,19 @@ class Storage:
         This method definition allows a user to delete a table
         by specifying its name.
         If the table_name exists in the database, the process is a success.
-        After doing so, the transaction is committed
-        to make it permanent.
 
         Args:
-        table_name => This will be the name
-                        of the table to be used for this operation.
+            table_name => This will be the name
+                            of the table to be used for this operation.
 
-        Should an error occur, it's caught and printed,
-        and the transaction is rolled back
-        to undo the changes that might have caused it.
+        Raise:
+            SQLAlchemyError should an error occur while dropping the table.
         """
-        query = f"DROP TABLE IF EXISTS {table_name}"
+        metadata = MetaData()
+        table = Table(table_name, metadata, autoload_with=self._engine)
         try:
-            self._cursor.execute(query)
-            self._connection.commit()
-        except Error as e:
+            table.drop(self._engine)
+            print(f"Table '{table_name}' dropped successfully")
+        except SQLAlchemyError as e:
             print(f"Error dropping table: {e}")
-            self.rollback_transaction()
             raise
