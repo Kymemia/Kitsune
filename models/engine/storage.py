@@ -5,6 +5,7 @@ This is the storage model for Kitsune,
 containing every model and attribute and method
 that will be used for the site
 """
+import logging
 from sqlalchemy import create_engine, Table, MetaData, Update, Column, delete
 from sqlalchemy.types import Integer, String, DateTime
 from sqlalchemy.orm import sessionmaker, Query, Session
@@ -78,9 +79,9 @@ class Storage:
             SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self._engine)
             self._session = SessionLocal()
 
-            print("Success! SQLAlchemy connected.")
+            logging.info("Success! SQLAlchemy connected.")
         except SQLAlchemyError as e:
-            print(f"Error connecting to the database: {e}")
+            logging.info(f"Error connecting to the database: {e}")
             self._session.rollback()
             raise
 
@@ -93,13 +94,13 @@ class Storage:
             try:
                 if self._session.is_active:
                     self._session.commit()
-                print("Pending transactions committed")
+                logging.info("Pending transactions committed")
             except Exception as e:
                 self._session.rollback()
-                print(f"Error occured >> {e}. Transactions rolled back.")
+                logging.info(f"Error occured >> {e}. Transactions rolled back.")
             finally:
                 self._session.close()
-                print("SQLAlchemy connection closed")
+                logging.info("SQLAlchemy connection closed")
 
     def execute_query(self, query: Query, params: Tuple[str] = None) -> int:
         """
@@ -126,7 +127,7 @@ class Storage:
             self._session.commit()
             return result.rowcount
         except SQLAlchemyError:
-            print("Error executing query: {e}")
+            logging.info("Error executing query: {e}")
             self._session.rollback()
             raise
 
@@ -161,7 +162,7 @@ class Storage:
             self._session.commit()
             return record
         except SQLAlchemyError as e:
-            print(f"Error fetching record: {e}")
+            logging.info(f"Error fetching record: {e}")
             self._session.rollback()
             raise
 
@@ -196,7 +197,7 @@ class Storage:
             self._session.commit()
             return records
         except SQLAlchemyError as e:
-            print(f"Error fetching records: {e}")
+            logging.info(f"Error fetching records: {e}")
             self._session.rollback()
             raise
 
@@ -259,7 +260,7 @@ class Storage:
                 return result.inserted_primary_key[0] if result.inserted_primary_key else None
 
         except SQLAlchemyError as e:
-            print(f"Error inserting data: {e}")
+            logging.info(f"Error inserting data: {e}")
             self._session.rollback()
             raise
 
@@ -294,7 +295,7 @@ class Storage:
             self._session.commit()
             return rows_updated
         except SQLAlchemyError as e:
-            print(f"Error updating records: {e}")
+            logging.info(f"Error updating records: {e}")
             self._session._rollback()
             raise
 
@@ -336,7 +337,7 @@ class Storage:
             self._session.commit()
             return result.rowcount
         except SQLAlchemyError as e:
-            print(f"Error deleting data: {e}")
+            logging.info(f"Error deleting data: {e}")
             self._session.rollback()
             raise
 
@@ -370,10 +371,10 @@ class Storage:
                 )
         try:
             table.create(self._engine)
-            print(f"Table '{table_name} created successfully'")
+            logging.info(f"Table '{table_name} created successfully'")
             return table
         except SQLAlchemyError as e:
-            print(f"Error creating table: {e}")
+            logging.info(f"Error creating table: {e}")
             raise
 
     def drop_table(self, table_name: str) -> None:
@@ -393,9 +394,9 @@ class Storage:
         table = Table(table_name, metadata, autoload_with=self._engine)
         try:
             table.drop(self._engine)
-            print(f"Table '{table_name}' dropped successfully")
+            logging.info(f"Table '{table_name}' dropped successfully")
             self._session.commit()
         except SQLAlchemyError as e:
-            print(f"Error dropping table: {e}")
+            logging.info(f"Error dropping table: {e}")
             self._session.rollback()
             raise
