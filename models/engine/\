@@ -5,13 +5,13 @@ This is the storage model for Kitsune,
 containing every model and attribute and method
 that will be used for the site
 """
-from sqlalchemy import create_engine, Table, MetaData, Update, Column, delete
+from sqlalchemy import create_engine, Table, MetaData, Update, Column
 from sqlalchemy.types import Integer, String, DateTime
-from sqlalchemy.orm import sessionmaker, Query, Session
+from sqlalchemy.orm import sessionmaker, Query
 from sqlalchemy.engine import URL
-from sqlalchemy.sql import text, Select, and_
+from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List, Union, Tuple, Dict, Any, Type
+from typing import List, Union, Tuple, Dict
 import mysql.connector
 from mysql.connector import Error
 
@@ -131,29 +131,29 @@ class Storage:
             raise
 
     def fetch_one(
-            self, query: Select,
+            self, query: Query,
             params: Tuple[str] = None
             ) -> Union[Dict, Tuple]:
         """
-        This method definition executes an SQLAlchemy query
+        This method definition executes an SQL query using SQLAlchemy
         and fetches only a single record from a certain result set.
         (E.g.: primary key or unique user_id)
 
         Args:
-        query (Select) => This is the SQLAlchemy object that will be executed.
-        params (Tuple[str], optional) => This is a tuple of parameters
-                    that'll be used in the query.
+        query => This is the SQL query that will be executed (str).
+        params => This is a tuple of parameters
+                    that'll be used in the SQL query
+                        (Tuple[str], optional).
 
         Returns:
-            Union[Dict, Tuple]: A single record from the result set,
+            A single record from the result set,
             either in dict or tuple, on success.
         
         Raises:
             SQLAlchemyError caught during execution.
             
         Example:
-            query = select(User).where(User.username == 'example_username')
-            result = fetch_one(query)
+            query = "SELECT * FROM users WHERE username = :username"
         """
         try:
             result = self._session.execute(query, params)
@@ -166,18 +166,17 @@ class Storage:
             raise
 
     def fetch_all(
-            self, query: Select,
+            self, query: Query,
             params: Tuple[str] = None
             ) -> List[Union[Dict, Tuple]]:
         """
-        This method definition executes an SQLAlchemy query
+        This method definition executes a SQL query using SQLAlchemy
         and fetches all the records from the result set.
             (E.g: Fetching all users from the Users table)
 
         Args:
-            query (Select): This is the SQLAlchemy object
-                        that's representing the query to be executed.
-            params (Tuple[str], optional): This is a tuple of parameters
+            query => This is the SQL query to be executed.
+            params => This is a tuple of parameters
                         to be used in the SQL query.
 
         Returns:
@@ -187,11 +186,11 @@ class Storage:
             SQLAlchemy error caught during query execution.
 
         Example:
-            query = select(User).where(User.status == 'active')
-            results = fetch_all(query)
+            query = "SELECT * FROM users WHERE status = :status"
         """
         try:
-            result = self._session.execute(query, params)
+            query_statement = text(query)
+            result = self._session.execute(query_statement, params)
             records = result.fetchall()
             self._session.commit()
             return records
@@ -200,84 +199,60 @@ class Storage:
             self._session.rollback()
             raise
 
-    def insert(self, table: Union[str, Any], data: Union[Dict[str, any], List[Dict[str, Any]]]) -> Union[int, List[int]]:
+    def insert(self, table: str, data: Dict[str, any]) -> int:
+        # change table to query -> Find better way to insert data <SQLAlchemy insert object>
+        # 
         """
         This method definition inserts new data
         into a specified table based on the provided data.
 
         Args:
-            table(str): This is the name of the table
+            table(str) => This is the name of the table
                         where the record will be inserted.
-            data (Union[Dict[str, any], List[Dict, str, Any]]):
-                This is a dictionary where keys == column names
+            data (Dict[str, any]) => This is a dictionary where keys == column names
                         and values are the corresponding values
                             that will be inserted.
 
         Returns:
-            Union[int, List[int]]: The Id of the inserted data on success, or a list of Ids in the event of multiple inserts.
+            int: The Id of the inserted data on success.
 
         Raises:
             SQLAlchemy error if there was an error durinf execution.
 
         Example:
-            *For single data insertion*
-            table = User
-            data = {'username': 'seno_mcmuffins', 'email': 'senor@mcmuffins.com'}
+            table = 'users'
+            data = {'username': 'senor_mcmuffins', 'email': 'senor@mcmuffins.com'}
             inserted_id = self.insert(table, data)
-
-            *For multiple data insertions*
-            multiple_users = [
-                {'username': 'user1', 'email': 'senor@mcmuffins'},
-                {'username': 'user2', 'email': 'missus@mcmuffins'}
-                ]
-                inserted_ids = self.insert(table, multiple_users)
-
         """
         try:
-            if isinstance(data, list):
-                if isisnstance(table, str):
-                    metadata = Metadata(bind=self._engine)
-                    target_table = Table(table, metadata, autoload_with=self._engine)
-                    self._session.execute(target_table.insert(), data)
-                else:
-                    self._session.bulk_insert_mappings(table, data)
-                self._session.commit()
-                return [record['id'] for record in data] # Have discussion about what to set as primary key
-            else:
-                if isinstance(table, str):
-                    metadata = MetaData(bind=self._engine)
-                    target_table = Table(table, metadata, autoload_with=self._engine)
-                    query_statement = target_table.insert().values(data)
-                    result = self._session.execute(query_statement)
-                else:
-                    obj = table(**data)
-                    self._session.add(obj)
-                    self._session.commit()
-                    return obj.id
-
-                self._session.commit()
-                return result.inserted_primary_key[0] if result.inserted_primary_key else None
-
+            metadata = MetaData(bind=self._engine)
+            target_table = Table(table, metadata, autoload_with=self._engine)
+            query_statement = target_table.insert().values(data)
+            result = self._session.execute(query_statement)
+            self._session.commit()
+            return result.inserted_primary_key[0] if result.inserted_primary_key else None
         except SQLAlchemyError as e:
             print(f"Error inserting data: {e}")
             self._session.rollback()
             raise
 
-    def update(self, model_class, data: Dict[str, Any], condition: Dict[str, Any] = None) -> int:
+    def update(self, table: str, data: Dict[str, any], condition: str) -> int:
+        # Query object -> same as insert 
+        # work with one distinct feature <email, preferrably>
         """
         This method definition updates records
         of a specified table based on the provided data
         and custom conditions specified by the user.
 
         Args:
-            model_class: This is the SQLAlchemy model for the table to be updated.
-            data (Dict[str, any]): This is a dictionary where keys == column names
+            table (str) => This is the name of the table that'll be updated.
+            data (Dict[str, any]) => This is a dictionary where keys == column names
                     and values  == new values to be set.
-            condition Union[str, Dict[str, Any]]: This is the condition to narrow down
+            condition (str) => This is the condition to narrow down
                         which records will be updated.
 
         Returns:
-            int: The number of rows affected by the update on success.
+            (int): The number of rows affected by the update on success.
         Raises:
             SQLAlchemyError: Should an error occur while executing the query.
 
@@ -289,19 +264,30 @@ class Storage:
             rows_updated = self.update('users', {'email': 'senor@mcmuffins.com'}, 'username = :username')
         """
         try:
-            query = self._session.query(model_class).filter_by(**condition) if condition else self._session.query(model_class)
-            rows_updated = query.update(data, synchronize_session='fetch')
+            metadata = MetaData(bind=self._engine)
+            target_table = Table(table, metadata, autoload_with=self._engine)
+            if isinstance(condition, str):
+                query_statement = update(target_table).values(data).where(text(condition))
+            elif isinstance(condition, dict):
+                condition_expr = [
+                        target_table.c[key] == value for key, value in condition.items()
+                        ]
+                query_statement = update(target_table).values(data).where(*condition_expr)
+            else:
+                raise ValueError("The condition must be a string or a dictionary")
+
+            result = self._session.execute(query_statement)
             self._session.commit()
-            return rows_updated
+            return result.rowcount
         except SQLAlchemyError as e:
             print(f"Error updating records: {e}")
             self._session._rollback()
             raise
 
-    def delete(self, table: str, condition: Union[str, Dict[str, Any]]) -> int:
+    def delete(self, table: str, condition: str) -> int:
         """
         This method definition deletes items from a specified table
-        based on a user's custom condition using SQLAlchemy objects.
+        based on a user's custom condition.
 
         Args:
             table (str) => This is the table name
@@ -328,35 +314,35 @@ class Storage:
                 condition_expr = [
                         target_table.c[key] == value for key, value in condition.items()
                         ]
-                query_statement = delete(target_table).where(and_(*condition_expr))
+                query_statement = delete(target_table).where(*condition_expr)
             else:
                 raise ValueError("Condition must be a string or a dictionary")
 
             result = self._session.execute(query_statement)
             self._session.commit()
-            return result.rowcount
+            return self._cursor.rowcount
         except SQLAlchemyError as e:
             print(f"Error deleting data: {e}")
             self._session.rollback()
             raise
 
-    def create_table(self, table_name: str, columns: Dict[str, Type]) -> Table:
+    def create_table(self, table_name: str, columns: dict) -> dict:
         """
         This method definition allows a user to create a new table
         with a specific name and a specific number
         of columns using SQLAlchemy's table definition.
 
         Args:
-            table_name (str): This is the name that'll be assigned
+            table_name => This is the name that'll be assigned
                             to the table created.
-            columns (Dict[str, Type]): This is a dictionary where keys are column names
-                and values are SQLAlchemy column types.
+            columns => This will be the number of columns assigne
+                        to the table based on the user's needs.
 
         Returns:
-            Table: Created table on success.
+            Created table on success.
         
         Raises:
-            SQLAlchemyError: Should an error occur while creating the table.
+            SQLAlchemyError should an error occur while creating the table.
         """
         metadata = MetaData()
 
@@ -371,7 +357,6 @@ class Storage:
         try:
             table.create(self._engine)
             print(f"Table '{table_name} created successfully'")
-            return table
         except SQLAlchemyError as e:
             print(f"Error creating table: {e}")
             raise
@@ -383,19 +368,17 @@ class Storage:
         If the table_name exists in the database, the process is a success.
 
         Args:
-            table_name (str): This will be the name
+            table_name => This will be the name
                             of the table to be used for this operation.
 
         Raise:
-            SQLAlchemyError: Should an error occur while dropping the table.
+            SQLAlchemyError should an error occur while dropping the table.
         """
-        metadata = MetaData(bind=self._engine)
+        metadata = MetaData()
         table = Table(table_name, metadata, autoload_with=self._engine)
         try:
             table.drop(self._engine)
             print(f"Table '{table_name}' dropped successfully")
-            self._session.commit()
         except SQLAlchemyError as e:
             print(f"Error dropping table: {e}")
-            self._session.rollback()
             raise
