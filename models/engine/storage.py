@@ -25,8 +25,8 @@ class Storage:
     that will be used by the user.
     """
     def __init__(
-            self, host: str, user: str,
-            password: str, database: str,
+            self, host: str, username: str,
+            database: str,
             port=3306, drivername:str = 'mysql+pymysql'
             ) -> None:
         """
@@ -45,15 +45,15 @@ class Storage:
         ---------
         """
         db_config = {
-                'drivername': driver,
-                'username': user,
-                'password': password,
+                'drivername': drivername,
+                'username': username,
                 'host': host,
                 'port': port,
                 'database': database
                 }
 
         self._uri = URL.create(**db_config)
+        logging.info(self._uri)
         self._engine = create_engine(self._uri)
         self._SessionFactory = sessionmaker(bind=self._engine)
         self._session = self._SessionFactory
@@ -74,16 +74,15 @@ class Storage:
         Else, returns the error caught during the connection process.
         """
         try:
-            self._engine = create_engine(self._uri)
-
-            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self._engine)
-            self._session = SessionLocal()
+            self._session = self._SessionFactory()
 
             logging.info("Success! SQLAlchemy connected.")
+            return True
         except SQLAlchemyError as e:
-            logging.info(f"Error connecting to the database: {e}")
-            self._session.rollback()
-            raise
+            logging.error(f"Error connecting to the database: {e}")
+            if self._session:
+                self._session.close()
+        return False
 
     def disconnect(self) -> None:
         """
@@ -123,7 +122,7 @@ class Storage:
                     WHERE username = :username"
         """
         try:
-            result = self._session.execute(query, params)
+            result = self._session.execute(text(query), params)
             self._session.commit()
             return result.rowcount
         except SQLAlchemyError:
