@@ -26,7 +26,7 @@ class Storage:
     """
     def __init__(
             self, host: str, username: str,
-            database: str,
+            database: str, password: str='',
             port=3306, drivername:str = 'mysql+pymysql'
             ) -> None:
         """
@@ -47,6 +47,7 @@ class Storage:
         db_config = {
                 'drivername': drivername,
                 'username': username,
+                'password': password,
                 'host': host,
                 'port': port,
                 'database': database

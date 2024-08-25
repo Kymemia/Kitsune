@@ -44,8 +44,8 @@ def storage():
     host = os.getenv("TEST_HOST", "localhost")
     port = os.getenv("TEST_DB_PORT", "3306")
     database = os.getenv("TEST_DB_NAME", "test_db")
-    username = os.getenv("TEST_DB_USER", "test_user")
-    password = os.getenv("TEST_DB_PASSWORD", "test_password")
+    username = os.getenv("TEST_USER", "test_user")
+    password = os.getenv("TEST_USER_PASSWORD", "test_password")
 
     logging.info(f'{username}: {password}')
     # Connect to the storage
