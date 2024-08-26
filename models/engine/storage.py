@@ -11,7 +11,7 @@ from sqlalchemy.types import Integer, String, DateTime
 from sqlalchemy.orm import sessionmaker, Query, Session
 from sqlalchemy.engine import URL
 from sqlalchemy.sql import text, Select, and_
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from typing import List, Union, Tuple, Dict, Any, Type
 import mysql.connector
 from mysql.connector import Error
@@ -27,7 +27,8 @@ class Storage:
     def __init__(
             self, host: str, username: str,
             database: str, password: str='',
-            port=3306, drivername:str = 'mysql+pymysql'
+            port=3306, drivername:str = 'mysql+pymysql',
+            timeout: int = 5
             ) -> None:
         """
         method definition to initialize all the attributes
@@ -55,32 +56,43 @@ class Storage:
 
         self._uri = URL.create(**db_config)
         logging.info(self._uri)
-        self._engine = create_engine(self._uri)
-        self._SessionFactory = sessionmaker(bind=self._engine)
-        self._session = self._SessionFactory
 
-    def connect(self) -> None:
+        self._engine = create_engine(
+                self._uri,
+                connect_args={"connect_timeout": timeout}
+                )
+        self._SessionFactory = sessionmaker(bind=self._engine)
+        self._session = self._SessionFactory()
+
+    def connect(self) -> bool:
         """
         This is the method definition to try and establish
         a connection to the MySQL server using the following parameters:
-        host => This is the the IP address of the MySQL server.
-        user => This is the username for authenticating the database.
-        password => This will be used to authenticate
+        host: This is the the IP address of the MySQL server.
+        user: This is the username for authenticating the database.
+        password: This will be used to authenticate
                     the specific MySQL database.
-        database => This is the database's specific name.
-        port => This is the port number where MySQL server is listening.
+        database: This is the database's specific name.
+        port: This is the port number where MySQL server is listening.
                     It is set to the default port.
+        timeout: This is the set timeout for establishing
+                    a connection, measured in seconds.
 
         If successful, a cursor object should be created from the connection.
         Else, returns the error caught during the connection process.
         """
         try:
             self._session = self._SessionFactory()
-
             logging.info("Success! SQLAlchemy connected.")
             return True
+        except OperationalError as e:
+            logging.error(f"OperationalError: {e}")
+            if "timeout" in str(e).lower():
+                raise TimeoutError("Connection timed out.")
+            if self._session:
+                self._session.close()
         except SQLAlchemyError as e:
-            logging.error(f"Error connecting to the database: {e}")
+            logging.error(f"SQLAlchemyError: {e}")
             if self._session:
                 self._session.close()
         return False
@@ -90,17 +102,23 @@ class Storage:
         This be a method definition to disconnect the connection to SQLAlchemy.
         It also checks if the connection exists, then closes it.
         """
-        if self._session:
-            try:
-                if self._session.is_active:
-                    self._session.commit()
+        if not self._session:
+            logging.warning("No active session to disconnect.")
+            return
+        
+        try:
+            if self._session.is_active:
+                self._session.commit()
                 logging.info("Pending transactions committed")
-            except Exception as e:
-                self._session.rollback()
-                logging.info(f"Error occured >> {e}. Transactions rolled back.")
-            finally:
+        except Exception as e:
+            self._session.rollback()
+            logging.info(f"Error occured >> {e}. Transactions rolled back.")
+        finally:
+            try:
                 self._session.close()
                 logging.info("SQLAlchemy connection closed")
+            except Exception as e:
+                logging.error(f"Error occured while closing the session.")
 
     def execute_query(self, query: Query, params: Tuple[str] = None) -> int:
         """
