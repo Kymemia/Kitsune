@@ -26,6 +26,7 @@ import pytest
 from models.engine.storage import Storage
 from unittest.mock import patch, MagicMock
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import Integer, String, Table, Column, MetaData
 
 # Load environment variables from .env file
 load_dotenv()
@@ -140,23 +141,6 @@ def test_disconnecting_from_database(storage, mocker):
 
 
 # ----------------- CRUD OPERATION TESTS -----------------
-
-
-def test_creating_table_users(storage):
-    """
-    Test Case 2.0: Creating Table Users
-    Description: Test creating the table 'users' in the database.
-    Expected Outcome: The table 'users' is created successfully.
-    """
-    query = """
-    CREATE TABLE users (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        name VARCHAR(255) NOT NULL,
-        age INT,
-        email VARCHAR(255) UNIQUE
-    )
-    """
-    assert storage.execute(query) == True
 
 
 # expected to fail

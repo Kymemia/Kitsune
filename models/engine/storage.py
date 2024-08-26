@@ -394,27 +394,3 @@ class Storage:
         except SQLAlchemyError as e:
             logging.info(f"Error creating table: {e}")
             raise
-
-    def drop_table(self, table_name: str) -> None:
-        """
-        This method definition allows a user to delete a table
-        by specifying its name.
-        If the table_name exists in the database, the process is a success.
-
-        Args:
-            table_name (str): This will be the name
-                            of the table to be used for this operation.
-
-        Raise:
-            SQLAlchemyError: Should an error occur while dropping the table.
-        """
-        metadata = MetaData(bind=self._engine)
-        table = Table(table_name, metadata, autoload_with=self._engine)
-        try:
-            table.drop(self._engine)
-            logging.info(f"Table '{table_name}' dropped successfully")
-            self._session.commit()
-        except SQLAlchemyError as e:
-            logging.info(f"Error dropping table: {e}")
-            self._session.rollback()
-            raise
