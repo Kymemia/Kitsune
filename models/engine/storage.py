@@ -255,7 +255,7 @@ class Storage:
         try:
             if isinstance(data, list):
                 if isisnstance(table, str):
-                    metadata = Metadata(bind=self._engine)
+                    metadata = Metadata()
                     target_table = Table(table, metadata, autoload_with=self._engine)
                     self._session.execute(target_table.insert(), data)
                 else:
@@ -264,7 +264,7 @@ class Storage:
                 return [record['id'] for record in data] # Have discussion about what to set as primary key
             else:
                 if isinstance(table, str):
-                    metadata = MetaData(bind=self._engine)
+                    metadata = MetaData()
                     target_table = Table(table, metadata, autoload_with=self._engine)
                     query_statement = target_table.insert().values(data)
                     result = self._session.execute(query_statement)
@@ -275,7 +275,7 @@ class Storage:
                     return obj.id
 
                 self._session.commit()
-                return result.inserted_primary_key[0] if result.inserted_primary_key else None
+                return result.inserted_primary_key if result.inserted_primary_key else None
 
         except SQLAlchemyError as e:
             logging.info(f"Error inserting data: {e}")
