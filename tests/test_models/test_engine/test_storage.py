@@ -65,7 +65,15 @@ def storage():
         host=host, port=port, database=database, username=username, password=password
     )
     storage.connect()
-    storage.execute_query("CREATE TABLE users(email VARCHAR(160));")
+    storage.execute_query(
+            """
+            CREATE TABLE users (
+                email VARCHAR(160),
+                age INT,
+                name VARCHAR(255)
+                );
+                """
+                )
 
     yield storage
 

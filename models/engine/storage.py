@@ -149,6 +149,7 @@ class Storage:
             self._session.rollback()
             raise
 
+    # TODO change to fetch k where default is 1
     def fetch_one(
             self, query: Select,
             params: Tuple[str] = None
@@ -176,7 +177,7 @@ class Storage:
         """
         try:
             result = self._session.execute(query, params)
-            record = result.fetchone()
+            record = result.scalar()
             self._session.commit()
             return record
         except SQLAlchemyError as e:
@@ -219,6 +220,7 @@ class Storage:
             self._session.rollback()
             raise
 
+    # TODO add() commit()
     def insert(self, table: Union[str, Any], data: Union[Dict[str, any], List[Dict[str, Any]]]) -> Union[int, List[int]]:
         """
         This method definition inserts new data
@@ -254,14 +256,14 @@ class Storage:
         """
         try:
             if isinstance(data, list):
-                if isisnstance(table, str):
+                if isinstance(table, str):
                     metadata = Metadata()
                     target_table = Table(table, metadata, autoload_with=self._engine)
                     self._session.execute(target_table.insert(), data)
                 else:
                     self._session.bulk_insert_mappings(table, data)
                 self._session.commit()
-                return [record['id'] for record in data] # Have discussion about what to set as primary key
+                return [record['uid'] for record in data] # Have discussion about what to set as primary key
             else:
                 if isinstance(table, str):
                     metadata = MetaData()
@@ -272,7 +274,7 @@ class Storage:
                     obj = table(**data)
                     self._session.add(obj)
                     self._session.commit()
-                    return obj.id
+                    return obj.uid
 
                 self._session.commit()
                 return result.inserted_primary_key if result.inserted_primary_key else None
@@ -282,6 +284,7 @@ class Storage:
             self._session.rollback()
             raise
 
+    # TODO  you only need to receive an sqlalchemy object example user1 where user1 is User(name="helloworld",...)
     def update(self, model_class, data: Dict[str, Any], condition: Dict[str, Any] = None) -> int:
         """
         This method definition updates records
@@ -317,6 +320,7 @@ class Storage:
             self._session._rollback()
             raise
 
+    # TODO typeshii
     def delete(self, table: str, condition: Union[str, Dict[str, Any]]) -> int:
         """
         This method definition deletes items from a specified table
