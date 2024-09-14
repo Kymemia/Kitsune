@@ -74,7 +74,7 @@ class User(Base):
         method definition to check if the password provided
         by the user matches the stored hashed password.
         """
-        return check_password_hash(self,hashed_password, password)
+        return check_password_hash(self.hashed_password, password)
 
     def reset_password(self, password: str):
         """

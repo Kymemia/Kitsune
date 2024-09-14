@@ -285,39 +285,25 @@ class Storage:
             raise
 
     # TODO  you only need to receive an sqlalchemy object example user1 where user1 is User(name="helloworld",...)
-    def update(self, model_class, data: Dict[str, Any], condition: Dict[str, Any] = None) -> int:
+    def update(self, model_instance) -> int:
         """
-        This method definition updates records
-        of a specified table based on the provided data
-        and custom conditions specified by the user.
+        method definition that updates an existing SQLAlchemy object in the DB
 
         Args:
-            model_class: This is the SQLAlchemy model for the table to be updated.
-            data (Dict[str, any]): This is a dictionary where keys == column names
-                    and values  == new values to be set.
-            condition Union[str, Dict[str, Any]]: This is the condition to narrow down
-                        which records will be updated.
+            model_instance: This is the instance
+                    of the SQLAlchemy model to be updated
 
         Returns:
-            int: The number of rows affected by the update on success.
-        Raises:
-            SQLAlchemyError: Should an error occur while executing the query.
-
-        Example:
-            *While using a parameterized condition with a dictionary*
-            rows_updated = self.update('users', {'email': 'senor@mcmuffins.com'}, {'username': 'senor_mcmuffins'})
-
-            *While using an SQL condition*
-            rows_updated = self.update('users', {'email': 'senor@mcmuffins.com'}, 'username = :username')
+            int: The number of rows affected by the updated
+            (1 if successful, assuming 1 row was worked on)
         """
         try:
-            query = self._session.query(model_class).filter_by(**condition) if condition else self._session.query(model_class)
-            rows_updated = query.update(data, synchronize_session='fetch')
+            self._session.merge(model_instance)
             self._session.commit()
-            return rows_updated
+            return 1
         except SQLAlchemyError as e:
-            logging.info(f"Error updating records: {e}")
-            self._session._rollback()
+            logging.info(f"Error updating record: {e}")
+            self._session.rollback()
             raise
 
     # TODO typeshii
