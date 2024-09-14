@@ -284,7 +284,6 @@ class Storage:
             self._session.rollback()
             raise
 
-    # TODO  you only need to receive an sqlalchemy object example user1 where user1 is User(name="helloworld",...)
     def update(self, model_instance) -> int:
         """
         method definition that updates an existing SQLAlchemy object in the DB
@@ -306,46 +305,27 @@ class Storage:
             self._session.rollback()
             raise
 
-    # TODO typeshii
-    def delete(self, table: str, condition: Union[str, Dict[str, Any]]) -> int:
+    # TODO - Will there be a need to tweak this so it has the ability to delete multiple records at the same time?
+    def delete(self, model_instance) -> int:
         """
-        This method definition deletes items from a specified table
-        based on a user's custom condition using SQLAlchemy objects.
+        method definition that deletes an existing SQLAlchemy object (record) from the DB
 
         Args:
-            table (str) => This is the table name
-                from which items will be deleted.
-            condition (Union[str, dict]) => This is the condition
-                to specify which items to delete.
+            model_instance: this is an instance
+                of the SQLAlchemy model to be deleted
 
         Returns:
-            int: The number of rows affected on success.
-        
-        Raise:
-            SQLAlchemyError should an error during the deletion operation.
+            int: the number of rows to be affected
 
-        Example:
-            rows_deleted = self.delete('users', {'username': 'senor_mcmuffins'})
+        Raises:
+            SQLAlchemyError: Should an error occur during deletion
         """
         try:
-            metadata = MetaData(bind=self._engine)
-            target_table = Table(table, metadata, autoload_with=self._engine)
-
-            if isinstance(condition, str):
-                query_statement = delete(target_table).where(text(condition))
-            elif isinstance(condition, dict):
-                condition_expr = [
-                        target_table.c[key] == value for key, value in condition.items()
-                        ]
-                query_statement = delete(target_table).where(and_(*condition_expr))
-            else:
-                raise ValueError("Condition must be a string or a dictionary")
-
-            result = self._session.execute(query_statement)
+            self._session.delete(model_instance)
             self._session.commit()
-            return result.rowcount
+            return 1
         except SQLAlchemyError as e:
-            logging.info(f"Error deleting data: {e}")
+            logging.info(f"Error deleting record: {e}")
             self._session.rollback()
             raise
 
