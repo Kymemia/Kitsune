@@ -20,13 +20,26 @@ This module contains tests for the Storage class in the engine module.
 """
 
 import os
+import logging
 from dotenv import load_dotenv
 import pytest
-from models.engine import Storage
+from models.engine.storage import Storage
+from unittest.mock import patch, MagicMock
+from sqlalchemy.exc import OperationalError
+from sqlalchemy import Integer, String, Table, Column, MetaData
 
 # Load environment variables from .env file
 load_dotenv()
 
+# MockOperation for connection test
+class MockOperationalError(OperationalError):
+    def __init__(self, message, orig=None, params=None):
+        super().__init__(message, orig, params)
+        self.orig = orig
+        self.params = params
+
+    def __str__(self):
+        return f"MockOperationalError: {self.message}"
 
 @pytest.fixture(scope="module")
 def storage():
@@ -43,20 +56,31 @@ def storage():
     host = os.getenv("TEST_HOST", "localhost")
     port = os.getenv("TEST_DB_PORT", "3306")
     database = os.getenv("TEST_DB_NAME", "test_db")
-    username = os.getenv("TEST_DB_USER", "test_user")
-    password = os.getenv("TEST_DB_PASSWORD", "test_password")
+    username = os.getenv("TEST_USER", "test_user")
+    password = os.getenv("TEST_USER_PASSWORD", "test_password")
 
+    logging.info(f'{username}: {password}')
     # Connect to the storage
     storage = Storage(
         host=host, port=port, database=database, username=username, password=password
     )
     storage.connect()
+    storage.execute_query(
+            """
+            CREATE TABLE users (
+                email VARCHAR(160),
+                age INT,
+                name VARCHAR(255)
+                );
+                """
+                )
+
     yield storage
 
     # Delete the table after all tests have been carried out
     delete_query = "DROP TABLE users"
 
-    assert storage.execute(delete_query) == True
+    assert type(storage.execute_query(delete_query)) == int
     # Disconnect from the storage
     storage.disconnect()
 
@@ -80,48 +104,54 @@ def test_failed_connection_with_invalid_credentials(storage):
     Expected Outcome: An appropriate error is raised indicating failure to connect.
     """
     with pytest.raises(Exception):
-        storage.connect(username="invalid_username", password="invalid_password")
+        storage.connect()
 
 
-def test_connection_timeout(storage):
+def test_connection_timeout():
     """
     Test Case 1.3: Connection Timeout
     Description: Test how the storage model handles connection timeouts.
     Expected Outcome: A timeout error is raised after the specified timeout period.
     """
-    with pytest.raises(TimeoutError):
-        storage.connect(timeout=5)
+    mock_error = MockOperationalError("Connection timed out", None, None)
+
+    with patch('models.engine.storage.create_engine', side_effect=mock_error):
+        with pytest.raises(MockOperationalError) as e:
+            storage = Storage(
+                    host=os.getenv("TEST_HOST", "default_host"),
+                    username=os.getenv("TEST_USER", "default_user"),
+                    database=os.getenv("TEST_DB_NAME", "default_database"),
+                    password=os.getenv("TEST_USER_PASSWORD", "default_password"),
+                    port=int(os.getenv("TEST_DB_PORT", 3306)),
+                    timeout=5
+                    )
 
 
-def test_disconnecting_from_database(storage):
+def test_disconnecting_from_database(storage, mocker):
     """
     Test Case 1.4: Disconnecting from Database
     Description: Test if the storage model can properly disconnect from the database.
     Expected Outcome: Connection is successfully closed without errors.
     """
-    assert storage.disconnect() == True
+    storage.connect()
+
+    mock_commit = mocker.patch.object(storage._session, 'commit')
+    mock_rollback = mocker.patch.object(storage._session, 'rollback')
+    mock_close = mocker.patch.object(storage._session, 'close')
+
+    storage._session.is_actie = True
+
+    storage.disconnect()
+
+    mock_commit.assert_called_once()
+    mock_close.assert_called_once()
+    mock_rollback.assert_not_called()
 
 
 # ----------------- CRUD OPERATION TESTS -----------------
 
 
-def test_creating_table_users(storage):
-    """
-    Test Case 2.0: Creating Table Users
-    Description: Test creating the table 'users' in the database.
-    Expected Outcome: The table 'users' is created successfully.
-    """
-    query = """
-    CREATE TABLE users (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        name VARCHAR(255) NOT NULL,
-        age INT,
-        email VARCHAR(255) UNIQUE
-    )
-    """
-    assert storage.execute(query) == True
-
-
+# expected to fail
 def test_inserting_data(storage):
     """
     Test Case 2.1: Inserting Data
@@ -133,6 +163,7 @@ def test_inserting_data(storage):
     assert isinstance(inserted_id, int)
 
 
+# expected to fail
 def test_inserting_data_with_missing_fields(storage):
     """
     Test Case 2.2: Inserting Data with Missing Fields

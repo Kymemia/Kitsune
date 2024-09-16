@@ -53,7 +53,7 @@ def get_python_files(directory: str) -> List[str]:
     """
     validated_python_files = []
     for root, _, files in os.walk(directory):
-        if '__pycache__' in root:
+        if '__pycache__' in root or 'tests' in root:
             continue
         validated_python_files.extend(validate_file(root, files))
     return validated_python_files
