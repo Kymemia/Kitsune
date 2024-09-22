@@ -104,6 +104,21 @@ class Role(Base):
 
     @staticmethod
     def assign_role_to_user(session: Session, user_id: str, role_name: str):
+        """
+        method definition that assigns a specific role to a user in the system by querying the DB for the user & role based on user_id and role_name.
+        If they both exist, the user's role is updated, and the change is committed to the DB
+
+        Args:
+            session (Session): SQLAlchemy session instance for interacting with the DB
+            user_id (str): user's unique id that will be assigned a role
+            role_name (str): specific role to be assigned
+
+        Returns:
+            bool: True should the role be successfully assigned. Else, false
+
+        Raises:
+            SQLAlchemyError: Should an error occur while querying the DB
+        """
         try:
             role = session.query(Role).filter_by(name=role_name).first()
             user = session.query(User).filter_by(uid=user_id).first()
@@ -137,6 +152,24 @@ class Role(Base):
     @staticmethod
     def set_current_user_role(session: Session, user_id: str):
         """
+        method definition that sets & returns the role of a user
+        based on their user ID
+
+        It queries the DB to retrieve the user associated with the user_id and returns their role
+
+        Appropriate exceptions are raised if user does not exist or an error occurs
+
+        Args:
+            session: SQLAlchemy session to interact with the DB
+            user_id: user's unique ID whose role needs to be set
+
+        Returns:
+            str or None: Returns role assigned to a user if found
+                        Else, returns None
+
+        Raises:
+            SQLAlchemyError: should an error occur
+                        while interacting with the DB
         """
         try:
             user = session.query(User).filter_by(uid=user_id).first()
@@ -150,6 +183,28 @@ class Role(Base):
     @staticmethod
     def perform_action(session: Session, user_id: str, action, *args, **kwargs):
         """
+        method definition that performs a specific action
+        if the user has the required permission.
+        It checks the user's roles and verifies if the user
+        has the necessary permission to execute said action.
+
+        Args:
+            session: SQLAlchemy session to interact with the DB
+            user_id (str): user's ID whose permissions are checked
+            action (function): the action that needs to be performed
+            if the user has correct permission
+            *args: positional arguments to pass the action function
+            **kwargs: keyword arguments to pass to the action function
+
+        Returns:
+            Any: the result of the action if the user has permission
+                and the action returns a value
+
+
+        Raises:
+            PermissionError: should the user not have permission
+                    to perform the action
+            SQLAlchemyError: should a problem occur while querying the DB
         """
         try:
             role = Role.set_current_user_role(session, user_id)

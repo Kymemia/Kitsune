@@ -30,7 +30,7 @@ class Role(Base):
     name = Column(String, nullable=False)
     permissions = relationship("Permission", secondary=role_permissions, back_populates="roles")
 
-
+# user inherits task & poster roles
 class Permission(Base):
     """
     class definition containing all necessary methods & attributes
