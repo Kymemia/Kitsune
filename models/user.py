@@ -3,6 +3,7 @@
 """
 this is the user model for Kitsune
 """
+import pytz
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy import Date, Enum, DateTime, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
@@ -13,6 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from typing import Optional, Union
 
 Base = declarative_base()
+EAT = pytz.timezone('Africa/Nairobi')
 
 
 class User(Base):
@@ -30,7 +32,7 @@ class User(Base):
     email = Column(String, nullable=False)
     phone_number = Column(String(256))
     hashed_password = Column(String(256), nullable=False)
-    account_creation_date = Column(DateTime, default=datetime.utcnow)
+    account_creation_date = Column(DateTime, default=lambda: datetime.now(EAT))
     last_login_date = Column(DateTime)
     credit_card = Column(String(60))
 
