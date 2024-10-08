@@ -149,7 +149,7 @@ class Storage:
             self._session.rollback()
             raise
 
-    # TODO change to fetch k where default is 1
+    # TODO change to fetch k where default is 1 if you want to fetch x number of elements
     def fetch_one(
             self, query: Select,
             params: Tuple[str] = None
@@ -305,7 +305,6 @@ class Storage:
             self._session.rollback()
             raise
 
-    # TODO - Will there be a need to tweak this so it has the ability to delete multiple records at the same time?
     def delete(self, model_instance) -> int:
         """
         method definition that deletes an existing SQLAlchemy object (record) from the DB
