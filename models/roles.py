@@ -5,7 +5,7 @@ this is the roles model for our platform
 """
 import logging
 from user import Base
-from sqlalchemy import Column, Integer, String, ForeginKey
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -23,7 +23,7 @@ class Role(Base):
     class definition containing all the key methods
     & attributes for the role model
     """
-    __tablename_) = "roles"
+    __tablename__ = "roles"
 
     id = Column(Integer, primary_key=True)
     name = COlumn(String, nullable=False, unique=True)

@@ -64,19 +64,6 @@ class Storage:
         self._SessionFactory = sessionmaker(bind=self._engine)
         self._session = self._SessionFactory()
 
-    def connect(self) -> bool:
-        """
-        This is the method definition to try and establish
-        a connection to the MySQL server using the following parameters:
-        host: This is the the IP address of the MySQL server.
-        user: This is the username for authenticating the database.
-        password: This will be used to authenticate
-                    the specific MySQL database.
-        database: This is the database's specific name.
-        port: This is the port number where MySQL server is listening.
-                    It is set to the default port.
-        timeout: This is the set timeout for establishing
-                    a connection, measured in seconds.
 class MySQLStorage:
     def __init__(self, host, user, password, database, port=3306):
         """
